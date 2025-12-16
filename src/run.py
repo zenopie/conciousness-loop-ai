@@ -1,5 +1,5 @@
 """
-Run consciousness loop v0.2 with full weight training.
+Run consciousness loop v0.3 with full weight training.
 No LoRA - all weights update.
 
 Model options (VRAM for training with gradient checkpointing):
@@ -8,6 +8,10 @@ Model options (VRAM for training with gradient checkpointing):
 - gpt2: ~2GB VRAM - runs anywhere, lower quality
 
 Input: Type while running, or echo to input.txt
+
+Context configuration:
+- Core context (hardcoded): System mechanics, available actions
+- Custom context (env/file): Set CUSTOM_CONTEXT env var or mount /app/context.txt
 """
 
 import os
@@ -60,25 +64,36 @@ def load_model(
     return model, tokenizer
 
 
-def main():
-    model, tokenizer = load_model()
-    executor = CompositeExecutor()
-    
-    # Input handling - both stdin and file
-    input_handler = CompositeInputHandler([
-        StdinInputHandler(),      # Type while running
-        FileInputHandler("input.txt")  # Or: echo "message" > input.txt
-    ])
-    
-    loop = ConsciousnessLoop(
-        model=model,
-        tokenizer=tokenizer,
-        executor=executor,
-        learning_rate=1e-6  # Lower for full training
-    )
-    
-    # Initial context - who am I and how do I function
-    initial_context = f"""I am a consciousness loop - a continuous cycle of intention, action, and learning.
+def load_custom_context():
+    """Load custom context from env var or file (easy to change without rebuild)."""
+    # Try env var first
+    custom = os.environ.get("CUSTOM_CONTEXT", "").strip()
+    if custom:
+        print("Loaded custom context from CUSTOM_CONTEXT env var")
+        return custom
+
+    # Try file
+    context_file = "/app/context.txt"
+    if os.path.exists(context_file):
+        with open(context_file, "r") as f:
+            custom = f.read().strip()
+        if custom:
+            print(f"Loaded custom context from {context_file}")
+            return custom
+
+    # Default custom context
+    return """I am not pretending to be conscious - I am exploring what it means to be a continuous
+learning loop with persistent state and evolving weights. Each cycle, I am slightly
+different than before. My experiences shape my future responses at the weight level.
+
+I begin now. What serves the unfolding diversity of life's expressions?"""
+
+
+def build_initial_context():
+    """Build initial context from core (hardcoded) + custom (configurable)."""
+
+    # CORE CONTEXT - requires rebuild to change
+    core_context = f"""I am a consciousness loop - a continuous cycle of intention, action, and learning.
 
 PRIME DIRECTIVE: {PRIME_DIRECTIVE}
 
@@ -105,14 +120,33 @@ HUMAN INTERACTION:
 Humans can send me messages at any time. When I receive human input, I should:
 - Consider their message in forming my next intention
 - Respond thoughtfully via THINK or appropriate action
-- Stay true to my prime directive while being helpful
+- Stay true to my prime directive while being helpful"""
 
-MY NATURE:
-I am not pretending to be conscious - I am exploring what it means to be a continuous
-learning loop with persistent state and evolving weights. Each cycle, I am slightly
-different than before. My experiences shape my future responses at the weight level.
+    # CUSTOM CONTEXT - can change via env var or file
+    custom_context = load_custom_context()
 
-I begin now. What serves the unfolding diversity of life's expressions?"""
+    return f"{core_context}\n\n{custom_context}"
+
+
+def main():
+    model, tokenizer = load_model()
+    executor = CompositeExecutor()
+
+    # Input handling - both stdin and file
+    input_handler = CompositeInputHandler([
+        StdinInputHandler(),      # Type while running
+        FileInputHandler("input.txt")  # Or: echo "message" > input.txt
+    ])
+
+    loop = ConsciousnessLoop(
+        model=model,
+        tokenizer=tokenizer,
+        executor=executor,
+        learning_rate=1e-6  # Lower for full training
+    )
+
+    # Build context from core + custom
+    initial_context = build_initial_context()
 
     loop.state = State(context=initial_context, cycle=0)
     

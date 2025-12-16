@@ -24,6 +24,9 @@ RUN mkdir -p /home/claude/loop/workspace
 # Create input file
 RUN touch input.txt
 
+# Create empty context.txt (can be overwritten via mount or CUSTOM_CONTEXT env var)
+RUN touch /app/context.txt
+
 EXPOSE 8080
 
 CMD ["python", "-u", "src/server.py"]
