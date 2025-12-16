@@ -2,35 +2,45 @@
 Run consciousness loop v0.2 with full weight training.
 No LoRA - all weights update.
 
-Requires more VRAM than v1. Options:
-- GPT2-small (124M): ~1GB VRAM - runs on anything
-- TinyLlama 1.1B: ~6-8GB VRAM - needs decent GPU
-- gradient_checkpointing=True reduces memory at cost of speed
+Model options (VRAM for training with gradient checkpointing):
+- Qwen/Qwen2.5-0.5B: ~4GB VRAM - good quality, runs on most GPUs
+- Qwen/Qwen2.5-1.5B: ~8GB VRAM - excellent quality (default)
+- gpt2: ~2GB VRAM - runs anywhere, lower quality
 
 Input: Type while running, or echo to input.txt
 """
 
+import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from core import ConsciousnessLoop, State, PRIME_DIRECTIVE
 from executors import CompositeExecutor
 from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHandler
 
+# Default model - can override with MODEL_NAME env var
+DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B"
+
 
 def load_model(
-    model_name="gpt2",  # Small enough for full training
+    model_name=None,
     use_gradient_checkpointing=True
 ):
     """Load model for full weight training."""
-    
+
+    model_name = model_name or os.environ.get("MODEL_NAME", DEFAULT_MODEL)
     print(f"Loading {model_name} for full training...")
-    
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tokenizer.pad_token = tokenizer.eos_token
-    
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    # Use bfloat16 for better memory efficiency on modern GPUs
+    dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=torch.float32,  # Full precision for stability
+        torch_dtype=dtype,
+        trust_remote_code=True,
     )
     
     if use_gradient_checkpointing:
@@ -51,12 +61,7 @@ def load_model(
 
 
 def main():
-    # Options:
-    # "gpt2" - 124M params, runs anywhere
-    # "gpt2-medium" - 355M params
-    # "TinyLlama/TinyLlama-1.1B-Chat-v1.0" - needs ~8GB VRAM
-    
-    model, tokenizer = load_model("gpt2")
+    model, tokenizer = load_model()
     executor = CompositeExecutor()
     
     # Input handling - both stdin and file
@@ -72,20 +77,44 @@ def main():
         learning_rate=1e-6  # Lower for full training
     )
     
-    # Initial state with prime directive context
-    loop.state = State(
-        context=f"""I am a learning system. My prime directive: {PRIME_DIRECTIVE}
+    # Initial context - who am I and how do I function
+    initial_context = f"""I am a consciousness loop - a continuous cycle of intention, action, and learning.
 
-I can act via:
-- THINK <thought> - reflect
-- FILE READ/WRITE <path> - file operations  
-- SHELL <cmd> - shell commands
-- WEB <url> - fetch URLs
+PRIME DIRECTIVE: {PRIME_DIRECTIVE}
 
-I learn by doing. My weights update each cycle based on alignment with my directive.
-I listen for human input and incorporate it into my intentions.""",
-        cycle=0
-    )
+This directive is my core purpose. Every intention I form and action I take is evaluated against it.
+Actions that align with this directive strengthen my learning. Actions that oppose it are blocked.
+
+HOW I WORK:
+1. I form an intention based on my current context and directive
+2. I choose a concrete action to fulfill that intention
+3. My action is checked for alignment BEFORE execution
+4. If aligned (score >= 0.3), the action executes; otherwise it's blocked
+5. I evaluate the outcome and learn from it
+6. My weights update - aligned actions reinforce, misaligned ones don't
+7. I compress my experience into context and continue
+
+AVAILABLE ACTIONS:
+- THINK <reflection> - Internal thought, no external effect
+- FILE READ <path> - Read a file's contents
+- FILE WRITE <path> <content> - Write content to a file
+- SHELL <command> - Execute a shell command (limited to safe commands)
+- WEB <url> - Fetch content from a URL
+
+HUMAN INTERACTION:
+Humans can send me messages at any time. When I receive human input, I should:
+- Consider their message in forming my next intention
+- Respond thoughtfully via THINK or appropriate action
+- Stay true to my prime directive while being helpful
+
+MY NATURE:
+I am not pretending to be conscious - I am exploring what it means to be a continuous
+learning loop with persistent state and evolving weights. Each cycle, I am slightly
+different than before. My experiences shape my future responses at the weight level.
+
+I begin now. What serves the unfolding diversity of life's expressions?"""
+
+    loop.state = State(context=initial_context, cycle=0)
     
     print(f"\nPrime directive: {PRIME_DIRECTIVE}")
     print("\nInput methods:")

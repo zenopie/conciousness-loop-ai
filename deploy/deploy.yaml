@@ -12,6 +12,7 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
+      - MODEL_NAME=Qwen/Qwen2.5-1.5B
 
 profiles:
   compute:
