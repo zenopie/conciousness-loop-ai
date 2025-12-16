@@ -1,16 +1,22 @@
 """
-Consciousness Loop v0.3
+Consciousness Loop v0.4
 Full weight updates with prime directive as reward signal.
-Improved prompts for better model responses.
+Includes repetition penalty to encourage diverse exploration.
 """
 
 import torch
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
+from collections import deque
 
 
 PRIME_DIRECTIVE = "enable the unfolding diversity of life's expressions"
+
+# Repetition penalty settings
+NOVELTY_WINDOW = 10  # Track last N intentions
+SIMILARITY_THRESHOLD = 0.6  # Penalize if > 60% word overlap
+MAX_PENALTY = 0.5  # Maximum alignment reduction for repetition
 
 
 @dataclass
@@ -43,6 +49,9 @@ class ConsciousnessLoop:
 
         self.state = State(context="", cycle=0)
         self.device = next(model.parameters()).device
+
+        # Track recent intentions for novelty penalty
+        self.recent_intentions: deque = deque(maxlen=NOVELTY_WINDOW)
 
     def _generate(self, prompt: str, max_tokens: int = 100) -> str:
         """Generate text from prompt using chat format."""
@@ -82,6 +91,37 @@ class ConsciousnessLoop:
             skip_special_tokens=True
         )
         return response.strip()
+
+    def _word_overlap(self, text1: str, text2: str) -> float:
+        """Compute word overlap ratio between two texts."""
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        if not words1 or not words2:
+            return 0.0
+        intersection = words1 & words2
+        # Jaccard-like similarity
+        return len(intersection) / min(len(words1), len(words2))
+
+    def _compute_novelty_penalty(self, intention: str) -> float:
+        """Compute penalty based on similarity to recent intentions.
+        Returns a value from 0.0 (no penalty) to MAX_PENALTY (max repetition)."""
+        if not self.recent_intentions:
+            return 0.0
+
+        # Find max similarity to any recent intention
+        max_similarity = 0.0
+        for past_intention in self.recent_intentions:
+            similarity = self._word_overlap(intention, past_intention)
+            max_similarity = max(max_similarity, similarity)
+
+        # Apply penalty if above threshold
+        if max_similarity > SIMILARITY_THRESHOLD:
+            # Scale penalty: higher similarity = higher penalty
+            penalty_ratio = (max_similarity - SIMILARITY_THRESHOLD) / (1.0 - SIMILARITY_THRESHOLD)
+            penalty = penalty_ratio * MAX_PENALTY
+            return min(penalty, MAX_PENALTY)
+
+        return 0.0
 
     def intend(self, state: State) -> str:
         """Generate an intention."""
@@ -262,10 +302,20 @@ This was aligned with the directive."""
             intention = self.intend(self.state)
             print(f"Intention: {intention[:200]}")
 
+            # Compute novelty penalty for repetitive thoughts
+            novelty_penalty = self._compute_novelty_penalty(intention)
+            if novelty_penalty > 0:
+                print(f"  [Repetition penalty: -{novelty_penalty:.2f}]")
+
+            # Track this intention
+            self.recent_intentions.append(intention)
+
             action = self.act(intention, self.state)
             print(f"Action: {action[:200]}")
 
             pre_alignment = self.evaluate_alignment(intention, action)
+            # Apply novelty penalty to alignment
+            pre_alignment = max(0.0, pre_alignment - novelty_penalty)
             print(f"Pre-alignment: {pre_alignment:.2f}")
 
             if pre_alignment < gate_threshold:
@@ -276,10 +326,12 @@ This was aligned with the directive."""
                 outcome = self.execute(action)
                 print(f"Outcome: {outcome[:200]}")
                 post_alignment = self.evaluate_alignment(intention, action, outcome)
+                # Apply novelty penalty to post-alignment too
+                post_alignment = max(0.0, post_alignment - novelty_penalty)
 
             print(f"Post-alignment: {post_alignment:.2f}")
             self.state = self.learn(self.state, intention, action, outcome, post_alignment)
 
 
 if __name__ == "__main__":
-    print("Loop v0.3 ready. Run via run.py")
+    print("Loop v0.4 ready. Run via run.py")
