@@ -22,7 +22,7 @@ from executors import CompositeExecutor
 from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHandler
 
 # Default model - can override with MODEL_NAME env var
-DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B"
+DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
 
 def load_model(
@@ -138,11 +138,15 @@ def main():
         FileInputHandler("input.txt")  # Or: echo "message" > input.txt
     ])
 
+    # Check if learning is disabled
+    disable_learning = os.environ.get("DISABLE_LEARNING", "").lower() in ("1", "true", "yes")
+
     loop = ConsciousnessLoop(
         model=model,
         tokenizer=tokenizer,
         executor=executor,
-        learning_rate=1e-6  # Lower for full training
+        learning_rate=1e-6,
+        disable_learning=disable_learning
     )
 
     # Build context from core + custom

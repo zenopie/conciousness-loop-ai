@@ -25,16 +25,21 @@ class State:
 
 
 class ConsciousnessLoop:
-    def __init__(self, model, tokenizer, executor=None, learning_rate=1e-6):
+    def __init__(self, model, tokenizer, executor=None, learning_rate=1e-6, disable_learning=False):
         self.model = model
         self.tokenizer = tokenizer
         self.executor = executor
+        self.disable_learning = disable_learning
 
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=learning_rate,
-            weight_decay=0.01
-        )
+        if not disable_learning:
+            self.optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=learning_rate,
+                weight_decay=0.01
+            )
+        else:
+            self.optimizer = None
+            print("Learning DISABLED - inference only mode")
 
         self.state = State(context="", cycle=0)
         self.device = next(model.parameters()).device
@@ -174,7 +179,9 @@ Just respond with a number between 0.0 and 1.0:"""
 
     def learn(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> State:
         """Update weights and state."""
-        if alignment < 0.3:
+        if self.disable_learning:
+            print("  [Learning disabled]")
+        elif alignment < 0.3:
             print(f"  Alignment {alignment:.2f} too low - skipping weight update")
         else:
             training_text = f"""Prime directive: {PRIME_DIRECTIVE}

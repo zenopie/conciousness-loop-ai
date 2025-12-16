@@ -12,7 +12,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import json
 
-INPUT_FILE = Path("input.txt")
+INPUT_FILE = Path(__file__).parent / "input.txt"  # Same dir as run.py
 START_TIME = None
 output_buffer = []
 MAX_LINES = 1000
