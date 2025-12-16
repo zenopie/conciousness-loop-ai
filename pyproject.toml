@@ -1,0 +1,16 @@
+[project]
+name = "consciousness-loop"
+version = "0.2.0"
+description = "Consciousness loop AI with live feedback integration"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+loop = "cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["cli"]

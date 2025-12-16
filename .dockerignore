@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# GitHub
+.github
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.so
+
+# Models (download fresh in container)
+model_cycle_*/
+*.pt
+*.pth
+*.bin
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Docs
+README.md
+*.md
+
+# Akash
+deploy*.yaml
