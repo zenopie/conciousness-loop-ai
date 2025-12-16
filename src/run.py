@@ -1,22 +1,21 @@
 """
-Run consciousness loop v0.3 with full weight training.
-No LoRA - all weights update.
+Run consciousness loop v0.4 with optional quantization.
 
-Model options (VRAM for training with gradient checkpointing):
-- Qwen/Qwen2.5-0.5B: ~4GB VRAM - good quality, runs on most GPUs
-- Qwen/Qwen2.5-1.5B: ~8GB VRAM - excellent quality (default)
-- gpt2: ~2GB VRAM - runs anywhere, lower quality
+Model options:
+- Qwen/Qwen2.5-7B-Instruct: ~14GB VRAM (full) or ~8GB (8-bit) or ~5GB (4-bit)
+- Qwen/Qwen2.5-14B-Instruct: ~14GB (8-bit) or ~8GB (4-bit)
+- Qwen/Qwen2.5-32B-Instruct: ~18GB (4-bit) - best quality!
 
-Input: Type while running, or echo to input.txt
-
-Context configuration:
-- Core context (hardcoded): System mechanics, available actions
-- Custom context (env/file): Set CUSTOM_CONTEXT env var or mount /app/context.txt
+Env vars:
+- MODEL_NAME: Model to load (default: Qwen/Qwen2.5-1.5B-Instruct)
+- QUANTIZATION: 4 or 8 for bit quantization, empty for full precision
+- DISABLE_LEARNING: 1 to disable weight updates
+- CUSTOM_CONTEXT: Custom context string
 """
 
 import os
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from core import ConsciousnessLoop, State, PRIME_DIRECTIVE
 from executors import CompositeExecutor
 from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHandler
@@ -29,38 +28,59 @@ def load_model(
     model_name=None,
     use_gradient_checkpointing=True
 ):
-    """Load model for full weight training."""
+    """Load model with optional quantization."""
 
     model_name = model_name or os.environ.get("MODEL_NAME", DEFAULT_MODEL)
-    print(f"Loading {model_name} for full training...")
+    quantization = os.environ.get("QUANTIZATION", "").strip()
+
+    print(f"Loading {model_name}...")
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Use bfloat16 for better memory efficiency on modern GPUs
-    dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+    # Configure quantization if requested
+    quantization_config = None
+    if quantization == "4":
+        print("Using 4-bit quantization")
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4"
+        )
+    elif quantization == "8":
+        print("Using 8-bit quantization")
+        quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=dtype,
-        trust_remote_code=True,
-    )
-    
-    if use_gradient_checkpointing:
-        model.gradient_checkpointing_enable()
-        print("Gradient checkpointing enabled")
-    
-    # Move to GPU if available
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = model.to(device)
-    print(f"Running on {device}")
-    
+    # Load model
+    if quantization_config:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            quantization_config=quantization_config,
+            device_map="auto",
+            trust_remote_code=True,
+        )
+        print(f"Model loaded with {quantization}-bit quantization")
+    else:
+        dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=dtype,
+            trust_remote_code=True,
+        )
+        if use_gradient_checkpointing:
+            model.gradient_checkpointing_enable()
+            print("Gradient checkpointing enabled")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = model.to(device)
+        print(f"Running on {device} with full precision")
+
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Parameters: {total_params:,} total, {trainable_params:,} trainable")
-    
+
     return model, tokenizer
 
 

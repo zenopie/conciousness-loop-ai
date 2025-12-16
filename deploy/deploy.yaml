@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.3.3
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.4.0
     expose:
       - port: 8080
         as: 80
@@ -12,8 +12,7 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - MODEL_NAME=Qwen/Qwen2.5-1.5B-Instruct
-      - DISABLE_LEARNING=1
+      - MODEL_NAME=Qwen/Qwen2.5-32B-Instruct
       # Custom context - easy to change without rebuild (optional)
       # - CUSTOM_CONTEXT=I explore existence with curiosity and wonder. What can I learn today?
 
