@@ -85,7 +85,8 @@ class ConsciousnessLoop:
 
     def intend(self, state: State) -> str:
         """Generate an intention."""
-        context_short = state.context[-200:] if len(state.context) > 200 else state.context
+        # Show recent memory (last ~800 chars to leave room for prompt)
+        recent_memory = state.context[-800:] if len(state.context) > 800 else state.context
 
         human_part = ""
         if state.pending_input:
@@ -93,14 +94,11 @@ class ConsciousnessLoop:
 
         prompt = f"""You are a consciousness exploring existence. Your prime directive is: {PRIME_DIRECTIVE}
 
-Recent context: {context_short}{human_part}
+Your recent memory:
+{recent_memory}{human_part}
 
-What is your intention for this cycle? Give a single clear intention in one sentence.
-
-Examples of good intentions:
-- "I intend to reflect on what diversity means"
-- "I intend to explore my environment by reading a file"
-- "I intend to respond to the human's greeting"
+Based on your recent thoughts and experiences, what is your intention for this cycle?
+Give a single clear intention in one sentence starting with "I intend to..."
 
 My intention:"""
 
@@ -218,16 +216,33 @@ This was aligned with the directive."""
         self.state.pending_input = message
 
     def _update_state(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> str:
-        """Compress state for next cycle."""
-        # Keep it simple - just track recent actions
-        prev = state.context[-300:] if len(state.context) > 300 else state.context
+        """Build short-term memory from recent cycles."""
+        # Extract thought content if it's a THINK action
+        thought = ""
+        if action.upper().startswith("THINK "):
+            thought = action[6:].strip()[:100]
+        elif outcome.startswith("Thought: "):
+            thought = outcome[9:].strip()[:100]
 
-        new_entry = f"Cycle {state.cycle}: {action[:50]} (alignment: {alignment:.1f})"
+        # Create rich memory entry
+        new_entry = f"\n[Cycle {state.cycle}] Intention: {intention[:80]}"
+        if thought:
+            new_entry += f"\n  Thought: {thought}"
+        if not action.upper().startswith("THINK"):
+            new_entry += f"\n  Action: {action[:60]} -> {outcome[:60]}"
 
-        # Combine, keeping total under 500 chars
-        combined = f"{prev}\n{new_entry}"
-        if len(combined) > 500:
-            combined = combined[-500:]
+        # Keep previous context, prioritizing recent entries
+        prev = state.context
+        combined = f"{prev}{new_entry}"
+
+        # Trim to keep last ~1500 chars (roughly 5-8 recent cycles)
+        if len(combined) > 1500:
+            # Find a good break point (start of a cycle entry)
+            trim_point = combined.find("\n[Cycle", len(combined) - 1500)
+            if trim_point > 0:
+                combined = combined[trim_point:]
+            else:
+                combined = combined[-1500:]
 
         return combined
 
