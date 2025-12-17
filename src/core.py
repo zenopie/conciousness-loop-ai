@@ -15,8 +15,8 @@ PRIME_DIRECTIVE = "enable the unfolding diversity of life's expressions"
 
 # Repetition penalty settings
 NOVELTY_WINDOW = 10  # Track last N intentions
-SIMILARITY_THRESHOLD = 0.6  # Penalize if > 60% word overlap
-MAX_PENALTY = 0.5  # Maximum alignment reduction for repetition
+SIMILARITY_THRESHOLD = 0.5  # Penalize if > 50% word overlap
+MAX_PENALTY = 0.7  # Maximum alignment reduction for repetition
 
 
 @dataclass
@@ -217,9 +217,15 @@ Just respond with a number between 0.0 and 1.0:"""
 
     def learn(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> State:
         """Update weights and state."""
+        is_think = action.upper().startswith("THINK")
+        had_human_input = bool(state.pending_input)
+
         if self.disable_learning:
             print("  [Learning disabled]")
-        elif alignment < 0.3:
+        elif is_think and not had_human_input:
+            # Skip training on pure thinking - only train on THINK when responding to humans
+            print("  [Skipping THINK training - no human input]")
+        elif alignment < 0.5:
             print(f"  Alignment {alignment:.2f} too low - skipping weight update")
         else:
             training_text = f"""Prime directive: {PRIME_DIRECTIVE}
