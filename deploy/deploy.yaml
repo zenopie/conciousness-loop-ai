@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.5.3
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.5.4
     expose:
       - port: 8080
         as: 80

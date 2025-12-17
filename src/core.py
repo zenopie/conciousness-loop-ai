@@ -16,7 +16,7 @@ PRIME_DIRECTIVE = "enable the unfolding diversity of life's expressions"
 # Repetition penalty settings
 NOVELTY_WINDOW = 10  # Track last N intentions
 SIMILARITY_THRESHOLD = 0.5  # Penalize if > 50% word overlap
-MAX_PENALTY = 0.7  # Maximum alignment reduction for repetition
+MAX_PENALTY = 0.5  # Maximum alignment reduction for repetition
 
 
 @dataclass
