@@ -239,10 +239,10 @@ This was aligned with the directive."""
 
             outputs = self.model(**inputs, labels=inputs["input_ids"])
 
-            # Weight: -0.5 to +0.5 based on alignment
+            # Weight: -0.1 to +0.1 based on alignment (gentle nudges)
             # Positive weight = reinforce (minimize loss)
             # Negative weight = repel (maximize loss via negated gradient)
-            weight = alignment - 0.5
+            weight = (alignment - 0.5) * 0.2
             weighted_loss = outputs.loss * weight
 
             weighted_loss.backward()
