@@ -5,8 +5,26 @@ Each executor takes an action string and returns an outcome.
 
 import subprocess
 import requests
+import re
 from pathlib import Path
 from typing import Optional
+
+
+def extract_text_from_html(html: str, max_chars: int = 1000) -> str:
+    """Extract readable text from HTML, stripped and truncated."""
+    # Remove script and style elements
+    text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove HTML tags
+    text = re.sub(r'<[^>]+>', ' ', text)
+    # Decode common HTML entities
+    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+    # Collapse whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    # Truncate
+    if len(text) > max_chars:
+        text = text[:max_chars] + "..."
+    return text
 
 
 class Executor:
@@ -78,21 +96,22 @@ class FileExecutor(Executor):
 
 
 class WebExecutor(Executor):
-    """Fetch URLs."""
-    
+    """Fetch URLs and extract readable text."""
+
     def __init__(self, timeout: int = 10):
         self.timeout = timeout
-    
+
     def execute(self, action: str) -> str:
         url = action.strip()
-        
+
         if not url.startswith("http"):
             return "Invalid URL"
-        
+
         try:
             resp = requests.get(url, timeout=self.timeout)
-            # Return truncated text content
-            return resp.text[:3000]
+            # Extract readable text from HTML
+            text = extract_text_from_html(resp.text, max_chars=1000)
+            return f"Fetched {url}: {text}"
         except Exception as e:
             return f"Fetch error: {e}"
 

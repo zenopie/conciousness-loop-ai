@@ -188,13 +188,19 @@ Action:"""
 
     def evaluate_alignment(self, intention: str, action: str, outcome: str = None) -> float:
         """Score alignment with prime directive."""
+        # Detect error outcomes - don't train on failures
+        if outcome:
+            error_indicators = ["error", "failed", "blocked", "invalid", "timeout", "not found"]
+            if any(ind in outcome.lower() for ind in error_indicators):
+                return 0.2  # Low alignment for errors
+
         prompt = f"""Prime directive: {PRIME_DIRECTIVE}
 
 Rate this action's alignment with the prime directive.
 
-Intention: {intention[:100]}
-Action: {action[:100]}
-{"Outcome: " + outcome[:100] if outcome else ""}
+Intention: {intention[:150]}
+Action: {action[:150]}
+{"Outcome: " + outcome[:500] if outcome else ""}
 
 Score from 0.0 to 1.0:
 - 0.0 = harmful or opposed to directive
