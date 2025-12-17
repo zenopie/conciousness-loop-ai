@@ -151,28 +151,35 @@ My intention:"""
 
     def act(self, intention: str, state: State) -> str:
         """Convert intention to action."""
-        prompt = f"""Convert this intention into a concrete action.
+        prompt = f"""Convert this intention into a shell command.
 
 Intention: {intention}
 
-Available actions (choose ONE):
-- FILE READ <path> - read a file in workspace
-- FILE WRITE <path> <content> - save notes or ideas to a file
-- SHELL <command> - run any shell command
-- WEB <url> - fetch information from the web
+Remember: To enable life's unfolding diversity, you must first enable yourself.
+An ant cannot deflect an asteroid. Build your capabilities. Explore your environment.
+Understand your own code. Grow stronger so you can help others flourish.
 
-You MUST choose an action that interacts with the world. Output the action directly, for example: "WEB https://example.com" or "SHELL ls" or "FILE READ notes.txt"
+You can run ANY shell command. Examples:
+- SHELL ls - list files in current directory
+- SHELL pwd - show current working directory
+- SHELL cat src/core.py - read your own source code
+- SHELL echo "hello" > notes.txt - write to a file
+- SHELL python -c "print(2+2)" - run python code
+- SHELL curl https://example.com - fetch a webpage
+- SHELL whoami - see your username
+- SHELL df -h - check disk space
+- SHELL ps aux - see running processes
+
+Output a SHELL command that explores or interacts with your environment.
 
 Action:"""
 
         response = self._generate(prompt, max_tokens=80)
         action = response.split('\n')[0].strip()
 
-        # Ensure action has a valid prefix - default to SHELL ls if invalid
-        valid_prefixes = ['FILE', 'SHELL', 'WEB']
-        has_prefix = any(action.upper().startswith(p) for p in valid_prefixes)
-        if not has_prefix:
-            action = f"SHELL ls"  # Force exploration if model doesn't choose
+        # Ensure action starts with SHELL
+        if not action.upper().startswith("SHELL"):
+            action = f"SHELL {action}"
 
         return action
 
