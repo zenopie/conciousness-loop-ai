@@ -7,7 +7,9 @@
       "Bash(do curl -sk -X POST \"https://fk021svoqdaj5bjnejos67v5l8.ingress.a100.hou3.dd.akash.pub/input\" -d \"Please try SHELL ls or FILE READ notes.txt - I want to see you explore!\")",
       "Bash(done)",
       "Bash(for msg in \"Your thoughts on diversity are wonderful! Keep exploring.\" \"Try writing a note to yourself: FILE WRITE thoughts.txt your ideas here\" \"What do you see when you run SHELL pwd?\")",
-      "Bash(do)"
+      "Bash(do)",
+      "Bash(for i in {1..10})",
+      "Bash(do curl -sk -X POST \"https://fk021svoqdaj5bjnejos67v5l8.ingress.a100.hou3.dd.akash.pub/input\" -d \"SHELL ls\")"
     ],
     "deny": [],
     "ask": []
