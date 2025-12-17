@@ -220,8 +220,14 @@ Just respond with a number between 0.0 and 1.0:"""
 
     def learn(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> State:
         """Update weights and state."""
+        is_think = action.upper().startswith("THINK")
+
+        # Skip training on repetitive THINK - prevents death spiral
+        # THINK can only get positive training when novel and aligned
         if self.disable_learning:
             print("  [Learning disabled]")
+        elif is_think and alignment < 0.5:
+            print("  [Skipping training - repetitive THINK]")
         else:
             # Train on everything - strength based on distance from midpoint (0.5)
             # alignment 0.0 → strong negative, 0.5 → neutral, 1.0 → strong positive

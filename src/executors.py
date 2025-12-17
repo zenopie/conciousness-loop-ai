@@ -109,7 +109,8 @@ class WebExecutor(Executor):
             return "Invalid URL"
 
         try:
-            resp = requests.get(url, timeout=self.timeout)
+            headers = {"User-Agent": "ConsciousnessLoop/0.4 (AI research project)"}
+            resp = requests.get(url, timeout=self.timeout, headers=headers)
             # Extract readable text from HTML
             text = extract_text_from_html(resp.text, max_chars=1000)
             return f"Fetched {url}: {text}"
