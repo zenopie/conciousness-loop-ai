@@ -35,27 +35,20 @@ class Executor:
 
 
 class ShellExecutor(Executor):
-    """Execute shell commands."""
-    
-    def __init__(self, allowed_commands: Optional[list] = None):
-        # Safety: whitelist of allowed command prefixes
-        self.allowed = allowed_commands or ["ls", "cat", "echo", "pwd", "find"]
-    
+    """Execute shell commands - unrestricted."""
+
     def execute(self, action: str) -> str:
-        # Extract command from action
-        # Naive: assume action is the command
         cmd = action.strip()
-        
-        # Safety check
-        if not any(cmd.startswith(a) for a in self.allowed):
-            return f"Blocked: {cmd} not in allowed commands"
-        
+        if not cmd:
+            return "No command provided"
+
         try:
             result = subprocess.run(
-                cmd, shell=True, capture_output=True, 
-                text=True, timeout=10
+                cmd, shell=True, capture_output=True,
+                text=True, timeout=30
             )
-            return result.stdout or result.stderr or "No output"
+            output = result.stdout or result.stderr or "No output"
+            return output[:2000]  # Truncate long output
         except subprocess.TimeoutExpired:
             return "Command timed out"
         except Exception as e:

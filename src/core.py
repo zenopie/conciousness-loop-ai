@@ -158,7 +158,7 @@ Intention: {intention}
 Available actions (choose ONE):
 - FILE READ <path> - read a file in workspace
 - FILE WRITE <path> <content> - save notes or ideas to a file
-- SHELL ls or pwd or echo - explore your environment
+- SHELL <command> - run any shell command
 - WEB <url> - fetch information from the web
 
 You MUST choose an action that interacts with the world. Output the action directly, for example: "WEB https://example.com" or "SHELL ls" or "FILE READ notes.txt"
