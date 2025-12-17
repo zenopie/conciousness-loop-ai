@@ -156,24 +156,23 @@ My intention:"""
 Intention: {intention}
 
 Available actions (choose ONE):
-- THINK <your thought> - reflect internally, form ideas
 - FILE READ <path> - read a file in workspace
 - FILE WRITE <path> <content> - save notes or ideas to a file
 - SHELL ls or pwd or echo - explore your environment
 - WEB <url> - fetch information from the web
 
-IMPORTANT: Use exactly ONE action type. Do NOT nest or combine actions like "THINK ACTION: WEB" - that is wrong. Just output the action directly, for example: "WEB https://example.com" or "THINK I wonder about the stars"
+You MUST choose an action that interacts with the world. Output the action directly, for example: "WEB https://example.com" or "SHELL ls" or "FILE READ notes.txt"
 
 Action:"""
 
         response = self._generate(prompt, max_tokens=80)
         action = response.split('\n')[0].strip()
 
-        # Ensure action has a valid prefix
-        valid_prefixes = ['THINK', 'FILE', 'SHELL', 'WEB']
+        # Ensure action has a valid prefix - default to SHELL ls if invalid
+        valid_prefixes = ['FILE', 'SHELL', 'WEB']
         has_prefix = any(action.upper().startswith(p) for p in valid_prefixes)
         if not has_prefix:
-            action = f"THINK {action}"
+            action = f"SHELL ls"  # Force exploration if model doesn't choose
 
         return action
 
@@ -220,14 +219,8 @@ Just respond with a number between 0.0 and 1.0:"""
 
     def learn(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> State:
         """Update weights and state."""
-        is_think = action.upper().startswith("THINK")
-
-        # Skip training on repetitive THINK - prevents death spiral
-        # THINK can only get positive training when novel and aligned
         if self.disable_learning:
             print("  [Learning disabled]")
-        elif is_think and alignment < 0.5:
-            print("  [Skipping training - repetitive THINK]")
         else:
             # Train on everything - strength based on distance from midpoint (0.5)
             # alignment 0.0 → strong negative, 0.5 → neutral, 1.0 → strong positive
@@ -272,19 +265,9 @@ This was aligned with the directive."""
 
     def _update_state(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> str:
         """Build short-term memory from recent cycles."""
-        # Extract thought content if it's a THINK action
-        thought = ""
-        if action.upper().startswith("THINK "):
-            thought = action[6:].strip()[:100]
-        elif outcome.startswith("Thought: "):
-            thought = outcome[9:].strip()[:100]
-
-        # Create rich memory entry
-        new_entry = f"\n[Cycle {state.cycle}] Intention: {intention[:80]}"
-        if thought:
-            new_entry += f"\n  Thought: {thought}"
-        if not action.upper().startswith("THINK"):
-            new_entry += f"\n  Action: {action[:60]} -> {outcome[:60]}"
+        # Create memory entry - intention is the thought, action is what we did
+        new_entry = f"\n[Cycle {state.cycle}] {intention[:80]}"
+        new_entry += f"\n  {action[:60]} -> {outcome[:60]}"
 
         # Keep previous context, prioritizing recent entries
         prev = state.context
