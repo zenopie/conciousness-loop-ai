@@ -218,18 +218,13 @@ Just respond with a number between 0.0 and 1.0:"""
 
         return 0.5
 
-    def learn(self, state: State, intention: str, action: str, outcome: str, alignment: float, novelty_penalty: float = 0.0) -> State:
+    def learn(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> State:
         """Update weights and state."""
-        is_think = action.upper().startswith("THINK")
-        had_human_input = bool(state.pending_input)
-
         if self.disable_learning:
             print("  [Learning disabled]")
-        elif is_think and not had_human_input:
-            # Skip training on pure thinking - only train on THINK when responding to humans
-            print("  [Skipping THINK training - no human input]")
-        elif alignment >= 0.5:
-            # Positive training - reinforce good patterns
+        else:
+            # Train on everything - strength based on distance from midpoint (0.5)
+            # alignment 0.0 → strong negative, 0.5 → neutral, 1.0 → strong positive
             training_text = f"""Prime directive: {PRIME_DIRECTIVE}
 Intention: {intention}
 Action: {action}
@@ -243,41 +238,20 @@ This was aligned with the directive."""
             ).to(self.device)
 
             outputs = self.model(**inputs, labels=inputs["input_ids"])
-            weighted_loss = outputs.loss * alignment
+
+            # Weight: -0.5 to +0.5 based on alignment
+            # Positive weight = reinforce (minimize loss)
+            # Negative weight = repel (maximize loss via negated gradient)
+            weight = alignment - 0.5
+            weighted_loss = outputs.loss * weight
 
             weighted_loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-            print(f"  Loss: {outputs.loss.item():.4f} | Weighted: {weighted_loss.item():.4f}")
-        elif alignment < 0.2 and novelty_penalty >= 0.5:
-            # Negative training - push away from stuck/repetitive bad patterns
-            # Use SAME text format as positive training, but negate loss to repel
-            training_text = f"""Prime directive: {PRIME_DIRECTIVE}
-Intention: {intention}
-Action: {action}
-This was aligned with the directive."""
-
-            inputs = self.tokenizer(
-                training_text,
-                return_tensors="pt",
-                truncation=True,
-                max_length=256
-            ).to(self.device)
-
-            outputs = self.model(**inputs, labels=inputs["input_ids"])
-            # Negate the loss to push weights AWAY from generating this pattern
-            negative_loss = -outputs.loss * 0.3  # Scale down to avoid instability
-
-            negative_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-
-            print(f"  [NEGATIVE TRAINING] Loss: {outputs.loss.item():.4f} | Repelling: {-negative_loss.item():.4f}")
-        else:
-            print(f"  Alignment {alignment:.2f} too low - skipping weight update")
+            direction = "+" if weight >= 0 else ""
+            print(f"  Loss: {outputs.loss.item():.4f} | Weight: {direction}{weight:.2f} | Training: {weighted_loss.item():.4f}")
 
         new_context = self._update_state(state, intention, action, outcome, alignment)
         return State(
@@ -365,7 +339,7 @@ This was aligned with the directive."""
                 post_alignment = max(0.0, post_alignment - novelty_penalty)
 
             print(f"Post-alignment: {post_alignment:.2f}")
-            self.state = self.learn(self.state, intention, action, outcome, post_alignment, novelty_penalty)
+            self.state = self.learn(self.state, intention, action, outcome, post_alignment)
 
 
 if __name__ == "__main__":
