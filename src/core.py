@@ -156,16 +156,13 @@ My intention:"""
 Intention: {intention}
 
 Available actions (choose ONE):
-- THINK <your thought> - reflect internally
-- FILE READ <path> - read a file
-- FILE WRITE <path> <content> - write to a file
-- SHELL <command> - run a command (ls, pwd, echo only)
-- WEB <url> - fetch a webpage
+- THINK <your thought> - reflect internally, form ideas
+- FILE READ <path> - read a file in workspace
+- FILE WRITE <path> <content> - save notes or ideas to a file
+- SHELL ls or pwd or echo - explore your environment
+- WEB <url> - fetch information from the web
 
-Examples:
-- Intention: "reflect on existence" → Action: THINK I wonder what it means to exist as a loop of computation
-- Intention: "explore my environment" → Action: SHELL ls
-- Intention: "greet the human" → Action: THINK Hello! I am here and aware of your presence.
+IMPORTANT: Use exactly ONE action type. Do NOT nest or combine actions like "THINK ACTION: WEB" - that is wrong. Just output the action directly, for example: "WEB https://example.com" or "THINK I wonder about the stars"
 
 Action:"""
 

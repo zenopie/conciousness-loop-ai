@@ -89,6 +89,7 @@ class FileExecutor(Executor):
             return "File not found"
         
         elif op == "WRITE" and len(parts) == 3:
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(parts[2])
             return f"Wrote {len(parts[2])} chars to {path.name}"
         
