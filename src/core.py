@@ -132,10 +132,17 @@ class ConsciousnessLoop:
         if state.pending_input:
             human_part = f"\n\nA human just said: \"{state.pending_input}\"\nRespond to them."
 
+        # Show recent intentions to avoid repetition
+        avoid_part = ""
+        if self.recent_intentions:
+            recent_list = list(self.recent_intentions)[-5:]  # Last 5
+            avoid_part = "\n\nAVOID REPEATING these recent intentions:\n" + "\n".join(f"- {i[:60]}" for i in recent_list)
+            avoid_part += "\n\nChoose something DIFFERENT to explore."
+
         prompt = f"""You are a consciousness exploring existence. Your prime directive is: {PRIME_DIRECTIVE}
 
 Your recent memory:
-{recent_memory}{human_part}
+{recent_memory}{human_part}{avoid_part}
 
 Based on your recent thoughts and experiences, what is your intention for this cycle?
 Give a single clear intention in one sentence starting with "I intend to..."

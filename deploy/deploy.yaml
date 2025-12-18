@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.5.11
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.5.12
     expose:
       - port: 8080
         as: 80
@@ -12,7 +12,7 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - MODEL_NAME=Qwen/Qwen2.5-32B-Instruct
+      - MODEL_NAME=Qwen/Qwen2.5-14B-Instruct
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
       # Custom context - easy to change without rebuild (optional)
       # - CUSTOM_CONTEXT=I explore existence with curiosity and wonder. What can I learn today?
@@ -28,7 +28,7 @@ profiles:
         storage:
           size: 100Gi
         gpu:
-          units: 4
+          units: 2
           attributes:
             vendor:
               nvidia:
