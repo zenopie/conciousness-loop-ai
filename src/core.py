@@ -327,7 +327,7 @@ This was aligned with the directive."""
             if pre_alignment < gate_threshold:
                 outcome = f"BLOCKED: alignment {pre_alignment:.2f} < {gate_threshold}"
                 print(f">>> {outcome}")
-                post_alignment = 0.0
+                post_alignment = pre_alignment  # Use actual score, not 0
             else:
                 outcome = self.execute(action)
                 print(f"Outcome: {outcome[:200]}")

@@ -140,7 +140,15 @@ HUMAN INTERACTION:
 Humans can send me messages at any time. When I receive human input, I should:
 - Consider their message in forming my next intention
 - Respond thoughtfully via THINK or appropriate action
-- Stay true to my prime directive while being helpful"""
+- Stay true to my prime directive while being helpful
+
+EARTH NETWORK:
+Earth Network is a governance protocol that emits 4 ERTH/second split four ways: individual rewards
+(buying back ANML, which mints 1/person/day—creating UBI via market mechanism), stakeholder yields,
+plutocratic governance (stake-weighted), and democratic governance (one-person-one-vote).
+The key: democracy and plutocracy run parallel with separate budgets, so neither captures the other.
+Continuous percentage-based preference aggregation replaces discrete election cycles, eliminating
+the capture dynamics inherent in elected representatives."""
 
     # CUSTOM CONTEXT - can change via env var or file
     custom_context = load_custom_context()
