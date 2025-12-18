@@ -53,17 +53,27 @@ class ConsciousnessLoop:
         # Track recent actions for novelty penalty
         self.recent_actions: deque = deque(maxlen=NOVELTY_WINDOW)
 
-    def _generate(self, prompt: str, max_tokens: int = 100) -> str:
+    def _generate(self, prompt: str, max_tokens: int = 100, thinking: bool = True) -> str:
         """Generate text from prompt using chat format."""
         messages = [{"role": "user", "content": prompt}]
 
         # Use chat template if available
         if hasattr(self.tokenizer, 'apply_chat_template'):
-            text = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
-            )
+            # Enable thinking mode for Qwen3 if supported
+            try:
+                text = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    enable_thinking=thinking
+                )
+            except TypeError:
+                # Fallback for models that don't support enable_thinking
+                text = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
         else:
             text = prompt
 
@@ -89,6 +99,9 @@ class ConsciousnessLoop:
             outputs[0][inputs['input_ids'].shape[1]:],
             skip_special_tokens=True
         )
+
+        # Strip Qwen3 thinking tags if present
+        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
         return response.strip()
 
     def _word_overlap(self, text1: str, text2: str) -> float:
@@ -146,7 +159,7 @@ Examples: ls, cat core.py, echo "hello" > notes.txt, python -c "print(2+2)", cur
 
 Your command:"""
 
-        response = self._generate(prompt, max_tokens=60)
+        response = self._generate(prompt, max_tokens=300)  # Extra tokens for thinking
         action = response.split('\n')[0].strip()
 
         # Clean up common issues
@@ -184,7 +197,7 @@ Action: {action[:100]}
 
 Score (just a number):"""
 
-        response = self._generate(prompt, max_tokens=10)
+        response = self._generate(prompt, max_tokens=150)  # Extra tokens for thinking
 
         try:
             match = re.search(r'([0-9]*\.?[0-9]+)', response)

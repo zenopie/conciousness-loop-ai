@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.7.1
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.8.0
     expose:
       - port: 8080
         as: 80
@@ -12,7 +12,7 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - MODEL_NAME=meta-llama/Llama-4-Maverick-17B-128E-Instruct
+      - MODEL_NAME=Qwen/Qwen3-235B-A22B
       - QUANTIZATION=4
       - USE_LORA=1
       - LORA_R=64
