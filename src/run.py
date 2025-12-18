@@ -67,14 +67,13 @@ def load_model(
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
+            device_map="auto",  # Spread across all available GPUs
             trust_remote_code=True,
         )
         if use_gradient_checkpointing:
             model.gradient_checkpointing_enable()
             print("Gradient checkpointing enabled")
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = model.to(device)
-        print(f"Running on {device} with full precision")
+        print(f"Running with full precision, device_map=auto")
 
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
