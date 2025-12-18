@@ -12,7 +12,7 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - MODEL_NAME=mistralai/Mixtral-8x22B-Instruct-v0.1
+      - MODEL_NAME=meta-llama/Llama-4-Maverick-17B-128E-Instruct
       - QUANTIZATION=4
       - USE_LORA=1
       - LORA_R=64
@@ -30,7 +30,7 @@ profiles:
         memory:
           size: 200Gi
         storage:
-          size: 400Gi
+          size: 1000Gi
         gpu:
           units: 6
           attributes:
