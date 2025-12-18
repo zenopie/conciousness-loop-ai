@@ -71,7 +71,7 @@ class ConsciousnessLoop:
             text,
             return_tensors="pt",
             truncation=True,
-            max_length=1024
+            max_length=512  # Reduced from 1024 to save GPU memory
         ).to(self.device)
 
         with torch.no_grad():
@@ -243,7 +243,7 @@ This was aligned with the directive."""
                 training_text,
                 return_tensors="pt",
                 truncation=True,
-                max_length=256
+                max_length=128  # Reduced from 256 to save GPU memory
             ).to(self.device)
 
             outputs = self.model(**inputs, labels=inputs["input_ids"])
@@ -262,6 +262,10 @@ This was aligned with the directive."""
 
             direction = "+" if weight >= 0 else ""
             print(f"  Loss: {outputs.loss.item():.4f} | Weight: {direction}{weight:.2f} | Training: {weighted_loss.item():.4f}")
+
+            # Free GPU memory after training step
+            del inputs, outputs, weighted_loss
+            torch.cuda.empty_cache()
 
         new_context = self._update_state(state, intention, action, outcome, alignment)
         return State(
