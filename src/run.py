@@ -1,14 +1,17 @@
 """
-Run consciousness loop v0.4 with optional quantization.
+Run consciousness loop v0.6 with QLoRA support for large models.
 
 Model options:
-- Qwen/Qwen2.5-7B-Instruct: ~14GB VRAM (full) or ~8GB (8-bit) or ~5GB (4-bit)
 - Qwen/Qwen2.5-14B-Instruct: ~14GB (8-bit) or ~8GB (4-bit)
-- Qwen/Qwen2.5-32B-Instruct: ~18GB (4-bit) - best quality!
+- Qwen/Qwen2.5-32B-Instruct: ~18GB (4-bit)
+- Qwen/Qwen2.5-72B-Instruct: ~40GB (4-bit + LoRA) - best quality!
 
 Env vars:
 - MODEL_NAME: Model to load (default: Qwen/Qwen2.5-1.5B-Instruct)
 - QUANTIZATION: 4 or 8 for bit quantization, empty for full precision
+- USE_LORA: 1 to enable LoRA adapters (required for training quantized models)
+- LORA_R: LoRA rank (default: 16)
+- LORA_ALPHA: LoRA alpha (default: 32)
 - DISABLE_LEARNING: 1 to disable weight updates
 - CUSTOM_CONTEXT: Custom context string
 """
@@ -16,6 +19,7 @@ Env vars:
 import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from core import ConsciousnessLoop, State, PRIME_DIRECTIVE
 from executors import CompositeExecutor
 from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHandler
@@ -28,10 +32,13 @@ def load_model(
     model_name=None,
     use_gradient_checkpointing=True
 ):
-    """Load model with optional quantization."""
+    """Load model with optional quantization and LoRA."""
 
     model_name = model_name or os.environ.get("MODEL_NAME", DEFAULT_MODEL)
     quantization = os.environ.get("QUANTIZATION", "").strip()
+    use_lora = os.environ.get("USE_LORA", "").lower() in ("1", "true", "yes")
+    lora_r = int(os.environ.get("LORA_R", "16"))
+    lora_alpha = int(os.environ.get("LORA_ALPHA", "32"))
 
     print(f"Loading {model_name}...")
 
@@ -67,13 +74,39 @@ def load_model(
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=dtype,
-            device_map="auto",  # Spread across all available GPUs
+            device_map="auto",
             trust_remote_code=True,
         )
         if use_gradient_checkpointing:
             model.gradient_checkpointing_enable()
             print("Gradient checkpointing enabled")
         print(f"Running with full precision, device_map=auto")
+
+    # Apply LoRA if requested (required for training quantized models)
+    if use_lora:
+        print(f"Applying LoRA adapters (r={lora_r}, alpha={lora_alpha})...")
+
+        # Prepare model for k-bit training if quantized
+        if quantization_config:
+            model = prepare_model_for_kbit_training(
+                model,
+                use_gradient_checkpointing=use_gradient_checkpointing
+            )
+
+        # Configure LoRA - target attention layers
+        lora_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=0.05,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                          "gate_proj", "up_proj", "down_proj"]
+        )
+
+        model = get_peft_model(model, lora_config)
+        model.print_trainable_parameters()
+        print("LoRA adapters applied successfully")
 
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
@@ -168,12 +201,16 @@ def main():
 
     # Check if learning is disabled
     disable_learning = os.environ.get("DISABLE_LEARNING", "").lower() in ("1", "true", "yes")
+    use_lora = os.environ.get("USE_LORA", "").lower() in ("1", "true", "yes")
+
+    # LoRA uses higher learning rate (adapters train faster)
+    learning_rate = 1e-4 if use_lora else 1e-6
 
     loop = ConsciousnessLoop(
         model=model,
         tokenizer=tokenizer,
         executor=executor,
-        learning_rate=1e-6,
+        learning_rate=learning_rate,
         disable_learning=disable_learning
     )
 
@@ -192,13 +229,21 @@ def main():
         loop.run(input_handler=input_handler)
     except KeyboardInterrupt:
         print(f"\n\nStopped at cycle {loop.state.cycle}")
-        
-        # Save full model
+
+        # Save model (LoRA adapters if using PEFT, full model otherwise)
         save_path = f"model_cycle_{loop.state.cycle}"
-        model.save_pretrained(save_path)
+
+        # Check if this is a PEFT model
+        if hasattr(model, 'save_pretrained') and hasattr(model, 'peft_config'):
+            # Save only LoRA adapters (much smaller)
+            model.save_pretrained(save_path)
+            print(f"LoRA adapters saved to {save_path}/")
+        else:
+            model.save_pretrained(save_path)
+            print(f"Full model saved to {save_path}/")
+
         tokenizer.save_pretrained(save_path)
-        print(f"Model saved to {save_path}/")
-        
+
         # Save state
         with open(f"{save_path}/state.txt", "w") as f:
             f.write(f"Cycle: {loop.state.cycle}\n")
