@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.6.0
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.7.1
     expose:
       - port: 8080
         as: 80
@@ -12,11 +12,11 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+      - MODEL_NAME=mistralai/Mixtral-8x22B-Instruct-v0.1
       - QUANTIZATION=4
       - USE_LORA=1
-      - LORA_R=128
-      - LORA_ALPHA=256
+      - LORA_R=64
+      - LORA_ALPHA=128
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
       # Custom context - easy to change without rebuild (optional)
       # - CUSTOM_CONTEXT=I explore existence with curiosity and wonder. What can I learn today?
@@ -26,13 +26,13 @@ profiles:
     consciousness-loop:
       resources:
         cpu:
-          units: 8
+          units: 12
         memory:
-          size: 128Gi
-        storage:
           size: 200Gi
+        storage:
+          size: 400Gi
         gpu:
-          units: 2
+          units: 6
           attributes:
             vendor:
               nvidia:

@@ -60,16 +60,29 @@ def load_model(
         print("Using 8-bit quantization")
         quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 
-    # Load model
+    # Load model - handle pre-quantized models (like DeepSeek-V3 FP8) gracefully
+    model = None
+    used_bnb_quantization = False
+
     if quantization_config:
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            quantization_config=quantization_config,
-            device_map="auto",
-            trust_remote_code=True,
-        )
-        print(f"Model loaded with {quantization}-bit quantization")
-    else:
+        try:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                quantization_config=quantization_config,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+            print(f"Model loaded with {quantization}-bit quantization")
+            used_bnb_quantization = True
+        except ValueError as e:
+            if "FineGrainedFP8Config" in str(e) or "already quantized" in str(e).lower():
+                print(f"WARNING: Model is pre-quantized with FP8, cannot apply bitsandbytes quantization")
+                print(f"Loading with native quantization instead...")
+                quantization_config = None
+            else:
+                raise
+
+    if model is None:
         dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
@@ -80,14 +93,14 @@ def load_model(
         if use_gradient_checkpointing:
             model.gradient_checkpointing_enable()
             print("Gradient checkpointing enabled")
-        print(f"Running with full precision, device_map=auto")
+        print(f"Model loaded with device_map=auto")
 
     # Apply LoRA if requested (required for training quantized models)
     if use_lora:
         print(f"Applying LoRA adapters (r={lora_r}, alpha={lora_alpha})...")
 
-        # Prepare model for k-bit training if quantized
-        if quantization_config:
+        # Prepare model for k-bit training if using bitsandbytes quantization
+        if used_bnb_quantization:
             model = prepare_model_for_kbit_training(
                 model,
                 use_gradient_checkpointing=use_gradient_checkpointing
