@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.5.4
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.5.5
     expose:
       - port: 8080
         as: 80
@@ -12,7 +12,7 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - MODEL_NAME=Qwen/Qwen2.5-7B-Instruct
+      - MODEL_NAME=Qwen/Qwen2.5-32B-Instruct
       # Custom context - easy to change without rebuild (optional)
       # - CUSTOM_CONTEXT=I explore existence with curiosity and wonder. What can I learn today?
 
@@ -21,23 +21,24 @@ profiles:
     consciousness-loop:
       resources:
         cpu:
-          units: 4
+          units: 8
         memory:
-          size: 16Gi
+          size: 64Gi
         storage:
-          size: 30Gi
+          size: 100Gi
         gpu:
-          units: 1
+          units: 2
           attributes:
             vendor:
               nvidia:
+                - model: a100
 
   placement:
     akash:
       pricing:
         consciousness-loop:
           denom: uakt
-          amount: 10000
+          amount: 100000
 
 deployment:
   consciousness-loop:
