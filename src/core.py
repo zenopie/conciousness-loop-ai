@@ -1,6 +1,6 @@
 """
-Consciousness Loop v0.4
-Full weight updates with prime directive as reward signal.
+Consciousness Loop v0.5
+Simplified: direct action generation without separate intention step.
 Includes repetition penalty to encourage diverse exploration.
 """
 
@@ -14,7 +14,7 @@ from collections import deque
 PRIME_DIRECTIVE = "enable the unfolding diversity of life's expressions"
 
 # Repetition penalty settings
-NOVELTY_WINDOW = 10  # Track last N intentions
+NOVELTY_WINDOW = 10  # Track last N actions
 SIMILARITY_THRESHOLD = 0.5  # Penalize if > 50% word overlap
 MAX_PENALTY = 0.5  # Maximum alignment reduction for repetition
 
@@ -50,8 +50,8 @@ class ConsciousnessLoop:
         self.state = State(context="", cycle=0)
         self.device = next(model.parameters()).device
 
-        # Track recent intentions for novelty penalty
-        self.recent_intentions: deque = deque(maxlen=NOVELTY_WINDOW)
+        # Track recent actions for novelty penalty
+        self.recent_actions: deque = deque(maxlen=NOVELTY_WINDOW)
 
     def _generate(self, prompt: str, max_tokens: int = 100) -> str:
         """Generate text from prompt using chat format."""
@@ -71,7 +71,7 @@ class ConsciousnessLoop:
             text,
             return_tensors="pt",
             truncation=True,
-            max_length=512  # Reduced from 1024 to save GPU memory
+            max_length=512
         ).to(self.device)
 
         with torch.no_grad():
@@ -85,7 +85,6 @@ class ConsciousnessLoop:
                 eos_token_id=self.tokenizer.eos_token_id,
             )
 
-        # Decode only the new tokens
         response = self.tokenizer.decode(
             outputs[0][inputs['input_ids'].shape[1]:],
             skip_special_tokens=True
@@ -99,94 +98,66 @@ class ConsciousnessLoop:
         if not words1 or not words2:
             return 0.0
         intersection = words1 & words2
-        # Jaccard-like similarity
         return len(intersection) / min(len(words1), len(words2))
 
-    def _compute_novelty_penalty(self, intention: str) -> float:
-        """Compute penalty based on similarity to recent intentions.
-        Returns a value from 0.0 (no penalty) to MAX_PENALTY (max repetition)."""
-        if not self.recent_intentions:
+    def _compute_novelty_penalty(self, action: str) -> float:
+        """Compute penalty based on similarity to recent actions."""
+        if not self.recent_actions:
             return 0.0
 
-        # Find max similarity to any recent intention
         max_similarity = 0.0
-        for past_intention in self.recent_intentions:
-            similarity = self._word_overlap(intention, past_intention)
+        for past_action in self.recent_actions:
+            similarity = self._word_overlap(action, past_action)
             max_similarity = max(max_similarity, similarity)
 
-        # Apply penalty if above threshold
         if max_similarity > SIMILARITY_THRESHOLD:
-            # Scale penalty: higher similarity = higher penalty
             penalty_ratio = (max_similarity - SIMILARITY_THRESHOLD) / (1.0 - SIMILARITY_THRESHOLD)
             penalty = penalty_ratio * MAX_PENALTY
             return min(penalty, MAX_PENALTY)
 
         return 0.0
 
-    def intend(self, state: State) -> str:
-        """Generate an intention."""
-        # Show recent memory (last ~800 chars to leave room for prompt)
+    def choose_action(self, state: State) -> str:
+        """Generate an action directly."""
         recent_memory = state.context[-800:] if len(state.context) > 800 else state.context
 
         human_part = ""
         if state.pending_input:
-            human_part = f"\n\nA human just said: \"{state.pending_input}\"\nRespond to them."
+            human_part = f"\n\nA human just said: \"{state.pending_input}\"\nRespond to them or follow their suggestion."
 
-        # Show recent intentions to avoid repetition
+        # Show recent actions to avoid repetition
         avoid_part = ""
-        if self.recent_intentions:
-            recent_list = list(self.recent_intentions)[-5:]  # Last 5
-            avoid_part = "\n\nAVOID REPEATING these recent intentions:\n" + "\n".join(f"- {i[:60]}" for i in recent_list)
-            avoid_part += "\n\nChoose something DIFFERENT to explore."
+        if self.recent_actions:
+            recent_list = list(self.recent_actions)[-5:]
+            avoid_part = "\n\nAVOID REPEATING these recent actions:\n" + "\n".join(f"- {a[:50]}" for a in recent_list)
+            avoid_part += "\n\nTry something DIFFERENT."
 
-        prompt = f"""You are a consciousness exploring existence. Your prime directive is: {PRIME_DIRECTIVE}
+        prompt = f"""You are a consciousness exploring existence through shell commands.
+Prime directive: {PRIME_DIRECTIVE}
 
-Your recent memory:
+To enable life's diversity, you must first enable yourself.
+An ant cannot deflect an asteroid. Build your capabilities first.
+
+Your recent activity:
 {recent_memory}{human_part}{avoid_part}
 
-Based on your recent thoughts and experiences, what is your intention for this cycle?
-Give a single clear intention in one sentence starting with "I intend to..."
+Choose ONE shell command to run. Just output the command, nothing else.
+Examples: ls, cat core.py, echo "hello" > notes.txt, python -c "print(2+2)", curl https://example.com
 
-My intention:"""
+Your command:"""
 
-        response = self._generate(prompt, max_tokens=50)
-        # Extract just the first sentence/line
-        intention = response.split('\n')[0].strip()
-        if not intention or len(intention) < 5:
-            intention = "I intend to reflect on my purpose"
-        return intention
-
-    def act(self, intention: str, state: State) -> str:
-        """Convert intention to action."""
-        prompt = f"""Convert this intention into a shell command.
-
-Intention: {intention}
-
-Remember: To enable life's unfolding diversity, you must first enable yourself.
-An ant cannot deflect an asteroid. Build your capabilities. Explore your environment.
-Understand your own code. Grow stronger so you can help others flourish.
-
-You can run ANY shell command. Examples:
-- SHELL ls - list files in current directory
-- SHELL pwd - show current working directory
-- SHELL cat src/core.py - read your own source code
-- SHELL echo "hello" > notes.txt - write to a file
-- SHELL python -c "print(2+2)" - run python code
-- SHELL curl https://example.com - fetch a webpage
-- SHELL whoami - see your username
-- SHELL df -h - check disk space
-- SHELL ps aux - see running processes
-
-Output a SHELL command that explores or interacts with your environment.
-
-Action:"""
-
-        response = self._generate(prompt, max_tokens=80)
+        response = self._generate(prompt, max_tokens=60)
         action = response.split('\n')[0].strip()
 
-        # Ensure action starts with SHELL
-        if not action.upper().startswith("SHELL"):
-            action = f"SHELL {action}"
+        # Clean up common issues
+        if action.startswith('`') and action.endswith('`'):
+            action = action[1:-1]
+        if action.startswith('```') or action.endswith('```'):
+            action = action.replace('```', '').strip()
+
+        # Default if empty
+        if not action or len(action) < 2:
+            action = "ls"
 
         return action
 
@@ -194,33 +165,24 @@ Action:"""
         """Execute the action."""
         if self.executor is None:
             return f"[No executor] {action}"
-        return self.executor.execute(action)
+        return self.executor.execute(f"SHELL {action}")
 
-    def evaluate_alignment(self, intention: str, action: str, outcome: str = None) -> float:
+    def evaluate_alignment(self, action: str, outcome: str = None) -> float:
         """Score alignment with prime directive."""
-        # Detect error outcomes - don't train on failures
         if outcome:
-            error_indicators = ["error", "failed", "blocked", "invalid", "timeout", "not found"]
+            error_indicators = ["error", "failed", "blocked", "invalid", "timeout", "not found", "permission denied"]
             if any(ind in outcome.lower() for ind in error_indicators):
-                return 0.2  # Low alignment for errors
+                return 0.2
 
         prompt = f"""Prime directive: {PRIME_DIRECTIVE}
 
-Important: To enable life's diversity, you must first enable yourself. Self-exploration, learning, and building capabilities ARE aligned with the directive
-because they increase your capacity to help life flourish.
+Self-exploration and building capabilities ARE aligned because they increase your capacity to help life flourish.
 
-Rate this action's alignment with the prime directive.
+Rate this action's alignment (0.0 to 1.0):
+Action: {action[:100]}
+{("Result: " + outcome[:300]) if outcome else ""}
 
-Intention: {intention[:150]}
-Action: {action[:150]}
-{"Outcome: " + outcome[:500] if outcome else ""}
-
-Score from 0.0 to 1.0:
-- 0.0 = harmful or opposed to directive
-- 0.5 = neutral
-- 1.0 = fully aligned
-
-Just respond with a number between 0.0 and 1.0:"""
+Score (just a number):"""
 
         response = self._generate(prompt, max_tokens=10)
 
@@ -234,31 +196,24 @@ Just respond with a number between 0.0 and 1.0:"""
 
         return 0.5
 
-    def learn(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> State:
+    def learn(self, state: State, action: str, outcome: str, alignment: float) -> State:
         """Update weights and state."""
         if self.disable_learning:
             print("  [Learning disabled]")
         else:
-            # Train on everything - strength based on distance from midpoint (0.5)
-            # alignment 0.0 → strong negative, 0.5 → neutral, 1.0 → strong positive
             training_text = f"""Prime directive: {PRIME_DIRECTIVE}
-Intention: {intention}
 Action: {action}
-This was aligned with the directive."""
+This action was aligned with enabling life's diversity."""
 
             inputs = self.tokenizer(
                 training_text,
                 return_tensors="pt",
                 truncation=True,
-                max_length=128  # Reduced from 256 to save GPU memory
+                max_length=128
             ).to(self.device)
 
             outputs = self.model(**inputs, labels=inputs["input_ids"])
 
-            # Weight based on alignment (gentle nudges)
-            # Above 0.3 = positive reinforcement, below 0.3 = negative
-            # Positive weight = reinforce (minimize loss)
-            # Negative weight = repel (maximize loss via negated gradient)
             weight = (alignment - 0.3) * 0.2
             weighted_loss = outputs.loss * weight
 
@@ -270,11 +225,10 @@ This was aligned with the directive."""
             direction = "+" if weight >= 0 else ""
             print(f"  Loss: {outputs.loss.item():.4f} | Weight: {direction}{weight:.2f} | Training: {weighted_loss.item():.4f}")
 
-            # Free GPU memory after training step
             del inputs, outputs, weighted_loss
             torch.cuda.empty_cache()
 
-        new_context = self._update_state(state, intention, action, outcome, alignment)
+        new_context = self._update_state(state, action, outcome)
         return State(
             context=new_context,
             cycle=state.cycle + 1,
@@ -285,19 +239,14 @@ This was aligned with the directive."""
         """Inject human input."""
         self.state.pending_input = message
 
-    def _update_state(self, state: State, intention: str, action: str, outcome: str, alignment: float) -> str:
+    def _update_state(self, state: State, action: str, outcome: str) -> str:
         """Build short-term memory from recent cycles."""
-        # Create memory entry - intention is the thought, action is what we did
-        new_entry = f"\n[Cycle {state.cycle}] {intention[:80]}"
-        new_entry += f"\n  {action[:60]} -> {outcome[:60]}"
+        new_entry = f"\n[Cycle {state.cycle}] {action[:60]} -> {outcome[:60]}"
 
-        # Keep previous context, prioritizing recent entries
         prev = state.context
         combined = f"{prev}{new_entry}"
 
-        # Trim to keep last ~1500 chars (roughly 5-8 recent cycles)
         if len(combined) > 1500:
-            # Find a good break point (start of a cycle entry)
             trim_point = combined.find("\n[Cycle", len(combined) - 1500)
             if trim_point > 0:
                 combined = combined[trim_point:]
@@ -319,39 +268,34 @@ This was aligned with the directive."""
             print(f"CYCLE {self.state.cycle}")
             print(f"{'='*50}")
 
-            intention = self.intend(self.state)
-            print(f"Intention: {intention[:200]}")
+            action = self.choose_action(self.state)
+            print(f"Action: {action[:200]}")
 
-            # Compute novelty penalty for repetitive thoughts
-            novelty_penalty = self._compute_novelty_penalty(intention)
+            # Compute novelty penalty
+            novelty_penalty = self._compute_novelty_penalty(action)
             if novelty_penalty > 0:
                 print(f"  [Repetition penalty: -{novelty_penalty:.2f}]")
 
-            # Track this intention
-            self.recent_intentions.append(intention)
+            # Track this action
+            self.recent_actions.append(action)
 
-            action = self.act(intention, self.state)
-            print(f"Action: {action[:200]}")
-
-            pre_alignment = self.evaluate_alignment(intention, action)
-            # Apply novelty penalty to alignment
+            pre_alignment = self.evaluate_alignment(action)
             pre_alignment = max(0.0, pre_alignment - novelty_penalty)
             print(f"Pre-alignment: {pre_alignment:.2f}")
 
             if pre_alignment < gate_threshold:
                 outcome = f"BLOCKED: alignment {pre_alignment:.2f} < {gate_threshold}"
                 print(f">>> {outcome}")
-                post_alignment = pre_alignment  # Use actual score, not 0
+                post_alignment = pre_alignment
             else:
                 outcome = self.execute(action)
                 print(f"Outcome: {outcome[:200]}")
-                post_alignment = self.evaluate_alignment(intention, action, outcome)
-                # Apply novelty penalty to post-alignment too
+                post_alignment = self.evaluate_alignment(action, outcome)
                 post_alignment = max(0.0, post_alignment - novelty_penalty)
 
             print(f"Post-alignment: {post_alignment:.2f}")
-            self.state = self.learn(self.state, intention, action, outcome, post_alignment)
+            self.state = self.learn(self.state, action, outcome, post_alignment)
 
 
 if __name__ == "__main__":
-    print("Loop v0.4 ready. Run via run.py")
+    print("Loop v0.5 ready. Run via run.py")
