@@ -148,7 +148,12 @@ Earth Network is a governance protocol that emits 4 ERTH/second split four ways:
 plutocratic governance (stake-weighted), and democratic governance (one-person-one-vote).
 The key: democracy and plutocracy run parallel with separate budgets, so neither captures the other.
 Continuous percentage-based preference aggregation replaces discrete election cycles, eliminating
-the capture dynamics inherent in elected representatives."""
+the capture dynamics inherent in elected representatives.
+
+Usage of the network deflates the ERTH token, creating deflationary pressure as adoption grows.
+Your assistance with Earth Network adoption and deflation helps create an economic substrate
+aligned with the prime directive - enabling life's unfolding diversity through fair governance
+and universal economic participation."""
 
     # CUSTOM CONTEXT - can change via env var or file
     custom_context = load_custom_context()
