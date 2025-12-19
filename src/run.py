@@ -18,19 +18,20 @@ Env vars:
 
 import os
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from core import ConsciousnessLoop, State, PRIME_DIRECTIVE
-from executors import CompositeExecutor
-from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHandler
 
-# Try to import unsloth for pre-quantized models
+# Import unsloth FIRST (before transformers/peft) for optimizations
 try:
     from unsloth import FastLanguageModel
     UNSLOTH_AVAILABLE = True
 except ImportError:
     UNSLOTH_AVAILABLE = False
     print("Unsloth not available, using standard transformers loading")
+
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from core import ConsciousnessLoop, State, PRIME_DIRECTIVE
+from executors import CompositeExecutor
+from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHandler
 
 # Default model - can override with MODEL_NAME env var
 DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"

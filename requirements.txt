@@ -4,6 +4,11 @@ accelerate>=0.34.0
 bitsandbytes>=0.41.0
 peft>=0.13.0
 xformers==0.0.28.post3
+trl
+tyro
+packaging
+psutil
+huggingface_hub
 
 # Extra deps
 requests>=2.28.0
