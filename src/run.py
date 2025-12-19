@@ -93,7 +93,18 @@ def load_model(
         # Apply LoRA if requested - only target attention for MoE
         if use_lora:
             print(f"Applying LoRA adapters (r={lora_r}, alpha={lora_alpha})...")
-            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=use_gradient_checkpointing)
+
+            # Only use prepare_model_for_kbit_training for non-prequantized models
+            # Pre-quantized models don't need this step and it fails on MoE experts
+            if not is_prequantized:
+                model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=use_gradient_checkpointing)
+            else:
+                # For pre-quantized, just enable gradient checkpointing manually
+                if use_gradient_checkpointing and hasattr(model, 'gradient_checkpointing_enable'):
+                    model.gradient_checkpointing_enable()
+                # Enable input gradients for LoRA
+                model.enable_input_require_grads()
+
             lora_config = LoraConfig(
                 r=lora_r,
                 lora_alpha=lora_alpha,
