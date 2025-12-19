@@ -20,6 +20,12 @@ RUN apt-get update && apt-get install -y \
 # Give claude sudo access
 RUN echo "claude ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
+# Create shared Claude config directory (login as root, run as claude user)
+RUN mkdir -p /etc/claude && \
+    chmod 777 /etc/claude && \
+    ln -s /etc/claude /root/.claude && \
+    ln -s /etc/claude /home/claude/.claude
+
 # Switch to claude user
 USER claude
 WORKDIR /workspace
