@@ -41,8 +41,10 @@ RUN pip3 install --user claude-max
 
 # Copy source code to workspace - Claude can read AND modify this
 COPY --chown=claude:claude src/claude_loop.py ./claude_loop.py
+COPY --chown=claude:claude src/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 8080 8081 8082 8083 8084 8085 3000 5000
 
-# Run from workspace where Claude has full access to its own source
-CMD ["python3", "-u", "claude_loop.py"]
+# Run via entrypoint that supports hot-reload (touch /workspace/RESTART)
+CMD ["./entrypoint.sh"]

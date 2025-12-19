@@ -3,10 +3,38 @@ version: "2.0"
 
 services:
   claude-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.9.3
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.9.4
     expose:
       - port: 8080
         as: 80
+        to:
+          - global: true
+      - port: 8081
+        as: 8081
+        to:
+          - global: true
+      - port: 8082
+        as: 8082
+        to:
+          - global: true
+      - port: 8083
+        as: 8083
+        to:
+          - global: true
+      - port: 8084
+        as: 8084
+        to:
+          - global: true
+      - port: 8085
+        as: 8085
+        to:
+          - global: true
+      - port: 3000
+        as: 3000
+        to:
+          - global: true
+      - port: 5000
+        as: 5000
         to:
           - global: true
     env:
