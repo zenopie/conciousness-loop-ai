@@ -6,6 +6,7 @@ peft>=0.13.0
 xformers==0.0.28.post3
 trl
 tyro
+datasets==4.3.0
 packaging
 psutil
 huggingface_hub
