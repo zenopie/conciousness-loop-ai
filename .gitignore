@@ -30,3 +30,7 @@ Thumbs.db
 # Project
 input.txt
 *.log
+
+# Secrets
+.env
+deploy/.env

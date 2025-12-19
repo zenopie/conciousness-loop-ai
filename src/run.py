@@ -19,15 +19,13 @@ Env vars:
 import os
 import torch
 
-# Import unsloth FIRST (before transformers/peft) for optimizations
-try:
-    from unsloth import FastLanguageModel
-    UNSLOTH_AVAILABLE = True
-except ImportError:
-    UNSLOTH_AVAILABLE = False
-    print("Unsloth not available, using standard transformers loading")
-
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+try:
+    from transformers import Llama4ForConditionalGeneration
+    LLAMA4_AVAILABLE = True
+except ImportError:
+    LLAMA4_AVAILABLE = False
+    print("Llama4ForConditionalGeneration not available - update transformers")
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from core import ConsciousnessLoop, State, PRIME_DIRECTIVE
 from executors import CompositeExecutor
@@ -37,9 +35,10 @@ from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHan
 DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
 
-def is_unsloth_model(model_name: str) -> bool:
-    """Check if model is an unsloth pre-quantized model."""
-    return "unsloth" in model_name.lower() and "bnb-4bit" in model_name.lower()
+def is_llama4_model(model_name: str) -> bool:
+    """Check if model is a Llama 4 model."""
+    name_lower = model_name.lower()
+    return "llama-4" in name_lower or "llama4" in name_lower
 
 
 def load_model(
@@ -56,31 +55,47 @@ def load_model(
 
     print(f"Loading {model_name}...")
 
-    # Check if this is an unsloth pre-quantized model
-    if is_unsloth_model(model_name) and UNSLOTH_AVAILABLE:
-        print("Detected unsloth pre-quantized model, using FastLanguageModel...")
-        model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name=model_name,
-            max_seq_length=2048,
+    # Llama 4 models need special handling (MoE architecture)
+    if is_llama4_model(model_name) and LLAMA4_AVAILABLE:
+        print("Detected Llama 4 model, using Llama4ForConditionalGeneration with 4-bit quantization...")
+
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+
+        # 4-bit quantization config
+        bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
-            dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
         )
 
-        # Apply LoRA if requested - use standard PEFT for MoE models
+        model = Llama4ForConditionalGeneration.from_pretrained(
+            model_name,
+            device_map="auto",
+            torch_dtype=torch.bfloat16,
+            quantization_config=bnb_config,
+            trust_remote_code=True,
+        )
+        print("Llama 4 loaded with 4-bit quantization")
+
+        # Apply LoRA if requested - only target attention for MoE
         if use_lora:
-            print(f"Applying LoRA adapters via PEFT (r={lora_r}, alpha={lora_alpha})...")
-            # Llama 4 MoE has different MLP layer names - only target attention
+            print(f"Applying LoRA adapters (r={lora_r}, alpha={lora_alpha})...")
+            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=use_gradient_checkpointing)
             lora_config = LoraConfig(
                 r=lora_r,
                 lora_alpha=lora_alpha,
                 lora_dropout=0.05,
                 bias="none",
                 task_type="CAUSAL_LM",
+                # Only attention layers - MoE experts have different structure
                 target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
             )
             model = get_peft_model(model, lora_config)
             model.print_trainable_parameters()
-            print("LoRA adapters applied via PEFT")
+            print("LoRA adapters applied")
 
         # Count parameters
         total_params = sum(p.numel() for p in model.parameters())
@@ -89,7 +104,7 @@ def load_model(
 
         return model, tokenizer
 
-    # Standard loading path for non-unsloth models
+    # Standard loading path
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
