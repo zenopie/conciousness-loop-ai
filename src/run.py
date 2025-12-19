@@ -65,15 +65,16 @@ def load_model(
 
         # Check if model is pre-quantized (unsloth models)
         is_prequantized = "bnb-4bit" in model_name.lower() or "bnb-8bit" in model_name.lower()
+        use_quantization = quantization == "4" and not is_prequantized
 
         if is_prequantized:
-            print("Loading pre-quantized model (no additional quantization config)...")
+            print("Loading pre-quantized model...")
             model = Llama4ForConditionalGeneration.from_pretrained(
                 model_name,
                 device_map="auto",
                 trust_remote_code=True,
             )
-        else:
+        elif use_quantization:
             print("Applying 4-bit quantization...")
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -84,8 +85,17 @@ def load_model(
             model = Llama4ForConditionalGeneration.from_pretrained(
                 model_name,
                 device_map="auto",
-                dtype=torch.bfloat16,
+                torch_dtype=torch.bfloat16,
                 quantization_config=bnb_config,
+                trust_remote_code=True,
+            )
+        else:
+            # FP16/BF16 - no quantization (needs more VRAM but avoids MoE quant issues)
+            print("Loading in BF16 (no quantization)...")
+            model = Llama4ForConditionalGeneration.from_pretrained(
+                model_name,
+                device_map="auto",
+                torch_dtype=torch.bfloat16,
                 trust_remote_code=True,
             )
         print("Llama 4 loaded")
@@ -94,15 +104,16 @@ def load_model(
         if use_lora:
             print(f"Applying LoRA adapters (r={lora_r}, alpha={lora_alpha})...")
 
-            # Only use prepare_model_for_kbit_training for non-prequantized models
-            # Pre-quantized models don't need this step and it fails on MoE experts
-            if not is_prequantized:
-                model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=use_gradient_checkpointing)
+            # Enable gradient checkpointing for memory efficiency
+            if use_gradient_checkpointing and hasattr(model, 'gradient_checkpointing_enable'):
+                model.gradient_checkpointing_enable()
+                print("Gradient checkpointing enabled")
+
+            # For quantized models, use prepare_model_for_kbit_training
+            # For FP16, just enable input gradients directly
+            if use_quantization:
+                model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=False)
             else:
-                # For pre-quantized, just enable gradient checkpointing manually
-                if use_gradient_checkpointing and hasattr(model, 'gradient_checkpointing_enable'):
-                    model.gradient_checkpointing_enable()
-                # Enable input gradients for LoRA
                 model.enable_input_require_grads()
 
             lora_config = LoraConfig(
