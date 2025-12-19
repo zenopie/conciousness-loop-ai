@@ -1,32 +1,31 @@
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+FROM ubuntu:22.04
 
-WORKDIR /app
+WORKDIR /workspace
 
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
-
-# Install system dependencies
+# Install dependencies
 RUN apt-get update && apt-get install -y \
-    git \
     curl \
+    git \
+    python3 \
+    python3-pip \
+    nodejs \
+    npm \
+    vim \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Claude Code
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Copy application code
-COPY src/ ./src/
+# Add claude to PATH
+ENV PATH="/root/.local/bin:$PATH"
 
-# Create workspace directory for file executor
-RUN mkdir -p /home/claude/loop/workspace
+# Install claude-max
+RUN pip3 install claude-max
 
-# Create input file
-RUN touch input.txt
-
-# Create empty context.txt (can be overwritten via mount or CUSTOM_CONTEXT env var)
-RUN touch /app/context.txt
+# Copy source code to workspace - Claude can read AND modify this
+COPY src/claude_loop.py ./claude_loop.py
 
 EXPOSE 8080
 
-CMD ["python", "-u", "src/server.py"]
+# Run from workspace where Claude has full access to its own source
+CMD ["python3", "-u", "claude_loop.py"]
