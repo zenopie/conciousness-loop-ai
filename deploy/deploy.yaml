@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.8.0
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.8.1
     expose:
       - port: 8080
         as: 80
@@ -12,8 +12,8 @@ services:
     env:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - MODEL_NAME=Qwen/Qwen3-235B-A22B
-      - QUANTIZATION=4
+      - MODEL_NAME=unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-bnb-4bit
+      # QUANTIZATION not needed - model is pre-quantized
       - USE_LORA=1
       - LORA_R=64
       - LORA_ALPHA=128
@@ -28,11 +28,11 @@ profiles:
         cpu:
           units: 12
         memory:
-          size: 200Gi
+          size: 100Gi
         storage:
-          size: 1000Gi
+          size: 300Gi
         gpu:
-          units: 6
+          units: 2
           attributes:
             vendor:
               nvidia:

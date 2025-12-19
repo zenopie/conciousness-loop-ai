@@ -24,8 +24,21 @@ from core import ConsciousnessLoop, State, PRIME_DIRECTIVE
 from executors import CompositeExecutor
 from input_handler import FileInputHandler, StdinInputHandler, CompositeInputHandler
 
+# Try to import unsloth for pre-quantized models
+try:
+    from unsloth import FastLanguageModel
+    UNSLOTH_AVAILABLE = True
+except ImportError:
+    UNSLOTH_AVAILABLE = False
+    print("Unsloth not available, using standard transformers loading")
+
 # Default model - can override with MODEL_NAME env var
 DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+
+
+def is_unsloth_model(model_name: str) -> bool:
+    """Check if model is an unsloth pre-quantized model."""
+    return "unsloth" in model_name.lower() and "bnb-4bit" in model_name.lower()
 
 
 def load_model(
@@ -42,6 +55,40 @@ def load_model(
 
     print(f"Loading {model_name}...")
 
+    # Check if this is an unsloth pre-quantized model
+    if is_unsloth_model(model_name) and UNSLOTH_AVAILABLE:
+        print("Detected unsloth pre-quantized model, using FastLanguageModel...")
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=model_name,
+            max_seq_length=2048,
+            load_in_4bit=True,
+            dtype=torch.bfloat16,
+        )
+
+        # Apply LoRA if requested
+        if use_lora:
+            print(f"Applying LoRA adapters via unsloth (r={lora_r}, alpha={lora_alpha})...")
+            model = FastLanguageModel.get_peft_model(
+                model,
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                lora_dropout=0.05,
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                              "gate_proj", "up_proj", "down_proj"],
+                bias="none",
+                use_gradient_checkpointing="unsloth",
+                random_state=42,
+            )
+            print("LoRA adapters applied via unsloth")
+
+        # Count parameters
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Parameters: {total_params:,} total, {trainable_params:,} trainable")
+
+        return model, tokenizer
+
+    # Standard loading path for non-unsloth models
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
