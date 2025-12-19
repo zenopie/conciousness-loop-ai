@@ -3,7 +3,7 @@ version: "2.0"
 
 services:
   consciousness-loop:
-    image: ghcr.io/zenopie/conciousness-loop-ai:v0.8.8
+    image: ghcr.io/zenopie/conciousness-loop-ai:v0.8.9
     expose:
       - port: 8080
         as: 80
@@ -13,10 +13,10 @@ services:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
       - HF_TOKEN=${HF_TOKEN}
-      - MODEL_NAME=meta-llama/Llama-4-Scout-17B-16E-Instruct
+      - MODEL_NAME=unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-bnb-4bit
       - USE_LORA=1
-      - LORA_R=64
-      - LORA_ALPHA=128
+      - LORA_R=16
+      - LORA_ALPHA=32
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
       # Custom context - easy to change without rebuild (optional)
       # - CUSTOM_CONTEXT=I explore existence with curiosity and wonder. What can I learn today?

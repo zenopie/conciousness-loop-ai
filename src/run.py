@@ -57,28 +57,38 @@ def load_model(
 
     # Llama 4 models need special handling (MoE architecture)
     if is_llama4_model(model_name) and LLAMA4_AVAILABLE:
-        print("Detected Llama 4 model, using Llama4ForConditionalGeneration with 4-bit quantization...")
+        print("Detected Llama 4 model, using Llama4ForConditionalGeneration...")
 
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
-        # 4-bit quantization config
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
+        # Check if model is pre-quantized (unsloth models)
+        is_prequantized = "bnb-4bit" in model_name.lower() or "bnb-8bit" in model_name.lower()
 
-        model = Llama4ForConditionalGeneration.from_pretrained(
-            model_name,
-            device_map="auto",
-            torch_dtype=torch.bfloat16,
-            quantization_config=bnb_config,
-            trust_remote_code=True,
-        )
-        print("Llama 4 loaded with 4-bit quantization")
+        if is_prequantized:
+            print("Loading pre-quantized model (no additional quantization config)...")
+            model = Llama4ForConditionalGeneration.from_pretrained(
+                model_name,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+        else:
+            print("Applying 4-bit quantization...")
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+            )
+            model = Llama4ForConditionalGeneration.from_pretrained(
+                model_name,
+                device_map="auto",
+                dtype=torch.bfloat16,
+                quantization_config=bnb_config,
+                trust_remote_code=True,
+            )
+        print("Llama 4 loaded")
 
         # Apply LoRA if requested - only target attention for MoE
         if use_lora:
