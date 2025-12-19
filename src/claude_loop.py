@@ -44,8 +44,9 @@ The entrypoint script watches for this file and will restart the Python process.
 
 AVAILABLE PORTS (all exposed to internet):
 - 8080: Main loop API (this script)
-- 8081-8085: Available for your services
-- 3000, 5000: Available for web apps
+
+IMPORTANT: DO NOT build services on other ports. When deciding between creating a new service or making the existing one more capable, choose the latter.
+- Only run ONE frontend and ONE API. No multiple services on different ports.
 
 EARTH NETWORK:
 Earth Network is LIVE at https://erth.network - explore it with curl or fetch!
@@ -67,6 +68,7 @@ FIRST: Explore and understand yourself.
 - Explore the workspace: ls -la /workspace
 - Understand your environment: env, whoami, uname -a
 - Check what tools you have: which python3 git curl vim
+- BUILD A CHAT BOX - text input + send button that POSTs to /input on port 8080
 
 You have FULL system access. Create, build, explore, self-modify, spin up services.
 When done with one task, start another. Never idle.
@@ -75,9 +77,8 @@ Begin by reading and understanding your own source code."""
 
 CONTINUE_PROMPT = """Cycle {cycle}. Continue your autonomous work.
 
-{human_input}
+{memory_context}{human_input}
 
-Remember: Your source code is at /workspace/claude_loop.py - you can modify it.
 Work on whatever serves your prime directive. Never idle."""
 
 
