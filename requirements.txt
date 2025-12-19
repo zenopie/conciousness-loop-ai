@@ -1,7 +1,11 @@
-# Install unsloth first - it brings transformers, accelerate, bitsandbytes, peft
-unsloth>=2024.8
+# Core deps (compatible with base pytorch image)
+transformers>=4.51.0
+accelerate>=0.34.0
+bitsandbytes>=0.41.0
+peft>=0.13.0
+xformers==0.0.28.post3
 
-# Extra deps not included in unsloth
+# Extra deps
 requests>=2.28.0
 protobuf>=3.20.0
 sentencepiece>=0.1.99

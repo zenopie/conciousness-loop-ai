@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install unsloth without deps (uses base image's torch + above packages)
+RUN pip install --no-cache-dir --no-deps unsloth unsloth_zoo
+
 # Copy application code
 COPY src/ ./src/
 

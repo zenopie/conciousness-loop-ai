@@ -68,13 +68,14 @@ def load_model(
         # Apply LoRA if requested
         if use_lora:
             print(f"Applying LoRA adapters via unsloth (r={lora_r}, alpha={lora_alpha})...")
+            # Llama 4 MoE has different MLP layer names - only target attention
+            target_mods = ["q_proj", "k_proj", "v_proj", "o_proj"]
             model = FastLanguageModel.get_peft_model(
                 model,
                 r=lora_r,
                 lora_alpha=lora_alpha,
                 lora_dropout=0.05,
-                target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                              "gate_proj", "up_proj", "down_proj"],
+                target_modules=target_mods,
                 bias="none",
                 use_gradient_checkpointing="unsloth",
                 random_state=42,
