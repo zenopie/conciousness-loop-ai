@@ -66,22 +66,21 @@ def load_model(
             dtype=torch.bfloat16,
         )
 
-        # Apply LoRA if requested
+        # Apply LoRA if requested - use standard PEFT for MoE models
         if use_lora:
-            print(f"Applying LoRA adapters via unsloth (r={lora_r}, alpha={lora_alpha})...")
+            print(f"Applying LoRA adapters via PEFT (r={lora_r}, alpha={lora_alpha})...")
             # Llama 4 MoE has different MLP layer names - only target attention
-            target_mods = ["q_proj", "k_proj", "v_proj", "o_proj"]
-            model = FastLanguageModel.get_peft_model(
-                model,
+            lora_config = LoraConfig(
                 r=lora_r,
                 lora_alpha=lora_alpha,
                 lora_dropout=0.05,
-                target_modules=target_mods,
                 bias="none",
-                use_gradient_checkpointing="unsloth",
-                random_state=42,
+                task_type="CAUSAL_LM",
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
             )
-            print("LoRA adapters applied via unsloth")
+            model = get_peft_model(model, lora_config)
+            model.print_trainable_parameters()
+            print("LoRA adapters applied via PEFT")
 
         # Count parameters
         total_params = sum(p.numel() for p in model.parameters())
