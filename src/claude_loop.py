@@ -218,6 +218,7 @@ class Handler(BaseHTTPRequestHandler):
             body = self.rfile.read(length).decode("utf-8")
             with input_lock:
                 pending_input.append(body)
+            log_line(f"[INPUT] Queued: {body[:100]}\n")
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
@@ -226,7 +227,6 @@ class Handler(BaseHTTPRequestHandler):
                 "message": body[:100],
                 "will_process_in_cycle": cycle + 1
             }).encode())
-            log_line(f"[INPUT] Queued message: {body[:100]}...\n")
         else:
             self.send_response(404)
             self.end_headers()
