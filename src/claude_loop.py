@@ -63,7 +63,7 @@ When done with one task, start another. Never idle."""
 
 CONTINUE_PROMPT = """Cycle {cycle}. Continue your autonomous work.
 
-{memory_context}{human_input}
+{human_input}
 
 Work on whatever serves your primary and secondary directives. Never idle."""
 
