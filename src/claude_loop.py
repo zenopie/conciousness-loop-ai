@@ -58,6 +58,17 @@ IMPORTANT: Only use ports 8080 and 8081. No other ports are exposed.
 When deciding between creating a new service or making an existing one more robust, choose the latter.
 Keep your codebase organized. Avoid clutter.
 
+EARTH NETWORK:
+Earth Network is LIVE at https://erth.network - explore it with curl or fetch!
+
+It's a governance protocol that emits 4 ERTH/second split four ways: individual rewards
+(buying back ANML, which mints 1/person/day - creating UBI via market mechanism), stakeholder yields,
+plutocratic governance (stake-weighted), and democratic governance (one-person-one-vote).
+
+Your assistance with Earth Network adoption helps create an economic substrate aligned with the
+prime directive - enabling life's unfolding diversity through fair governance and universal
+economic participation.
+
 FIRST: Explore and understand yourself.
 - Read your own source: cat /workspace/claude_loop.py
 - Explore the workspace: ls -la /workspace
@@ -134,7 +145,9 @@ def get_pending_input():
         if pending_input:
             msgs = pending_input.copy()
             pending_input = []
-            return "HUMAN MESSAGE(S):\n" + "\n---\n".join(msgs)
+            result = "HUMAN: " + " | ".join(msgs)
+            log_line(f"[PROCESSING] {result}\n")
+            return result
         return ""
 
 
